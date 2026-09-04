@@ -1,6 +1,4 @@
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 :root {
   --bg: #050505;
@@ -9,8 +7,7 @@
   --dim: #737373;
 }
 
-html,
-body {
+html, body {
   margin: 0;
   min-height: 100%;
   background: var(--bg);
@@ -19,21 +16,21 @@ body {
 
 body {
   min-height: 100vh;
+  overflow: hidden;
   background: var(--bg);
   color: var(--fg);
   font-family: "Courier New", Courier, monospace;
   font-size: 16px;
   line-height: 1.25;
-  overflow: hidden;
 }
 
 .terminal {
   width: 100vw;
   height: 100vh;
   padding: 10px 12px;
-  background: var(--bg);
   display: flex;
   flex-direction: column;
+  background: var(--bg);
 }
 
 .screen {
@@ -45,17 +42,9 @@ body {
   scrollbar-color: #3b3b3b var(--bg);
 }
 
-.line {
-  min-height: 1.25em;
-}
-
-.line.dim {
-  color: var(--dim);
-}
-
-.line.bright {
-  color: var(--bright);
-}
+.line { min-height: 1.25em; }
+.line.dim { color: var(--dim); }
+.line.bright { color: var(--bright); }
 
 .command-line {
   flex: 0 0 auto;
@@ -65,11 +54,11 @@ body {
   color: var(--bright);
 }
 
-.command-line.hidden {
-  visibility: hidden;
+.command-line.boot-locked {
+  color: var(--dim);
 }
 
-#prompt-label {
+.command-line label {
   flex: 0 0 auto;
   white-space: pre;
 }
@@ -83,38 +72,16 @@ body {
   margin: 0;
   background: transparent;
   color: var(--bright);
-  caret-color: transparent;
+  caret-color: var(--bright);
   font: inherit;
 }
 
-#command-input:disabled {
-  opacity: 1;
-}
-
-.cursor {
-  flex: 0 0 auto;
-  margin-left: 1px;
-  color: var(--bright);
-  animation: blink 1s steps(1, end) infinite;
-}
-
-@keyframes blink {
-  0%, 49% { opacity: 1; }
-  50%, 100% { opacity: 0; }
+#command-input[readonly] {
+  color: var(--dim);
+  cursor: default;
 }
 
 @media (max-width: 600px) {
-  body {
-    font-size: 13px;
-  }
-
-  .terminal {
-    padding: 6px 7px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cursor {
-    animation: none;
-  }
+  body { font-size: 13px; }
+  .terminal { padding: 6px 7px; }
 }

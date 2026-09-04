@@ -11,19 +11,17 @@
   <main id="terminal" class="terminal" aria-label="Weather Station 17 terminal">
     <div id="screen" class="screen" aria-live="polite"></div>
 
-    <form id="command-form" class="command-line hidden" autocomplete="off">
-      <label for="command-input" id="prompt-label">C:\WS17&gt;</label>
+    <form id="command-form" class="command-line boot-locked" autocomplete="off">
+      <label for="command-input">C:\WS17&gt;</label>
       <input
         id="command-input"
-        name="command"
         type="text"
         spellcheck="false"
         autocapitalize="off"
         autocomplete="off"
         aria-label="Command"
-        disabled
+        readonly
       >
-      <span class="cursor" aria-hidden="true">█</span>
     </form>
   </main>
 

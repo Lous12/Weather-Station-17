@@ -5,8 +5,8 @@
   const form = document.getElementById("command-form");
   const input = document.getElementById("command-input");
 
-  const STATE_KEY = "ws17_dos_state_v014";
-  const LOG_KEY = "ws17_dos_log_v014";
+  const STATE_KEY = "ws17_dos_state_v015";
+  const LOG_KEY = "ws17_dos_log_v015";
 
   const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 
@@ -28,11 +28,11 @@
   };
 
   const nodes = [
-    { id: "WS-03", area: "COASTAL SECTOR", status: "NO DATA" },
-    { id: "WS-08", area: "MOUNTAIN RELAY", status: "ONLINE" },
-    { id: "WS-12", area: "NORTHERN SECTOR", status: "OFFLINE" },
-    { id: "WS-17", area: "LOCAL NODE", status: "ONLINE" },
-    { id: "WS-21", area: "EASTERN RIDGE", status: "UNKNOWN" }
+    ["WS-03", "COASTAL SECTOR",   "NO DATA"],
+    ["WS-08", "MOUNTAIN RELAY",  "ONLINE"],
+    ["WS-12", "NORTHERN SECTOR", "OFFLINE"],
+    ["WS-17", "LOCAL NODE",      "ONLINE"],
+    ["WS-21", "EASTERN RIDGE",   "UNKNOWN"]
   ];
 
   const radioMessages = [
@@ -44,31 +44,40 @@
     "STATIC LEVEL ABOVE NORMAL."
   ];
 
-  function loadJSON(key, fallback) {
+  // Works on GitHub Pages, and fails safely if localStorage is blocked
+  // when the HTML file is opened directly from disk.
+  function storageGet(key, fallback) {
     try {
-      const parsed = JSON.parse(localStorage.getItem(key));
-      return parsed ?? fallback;
+      const raw = window.localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
     } catch {
       return fallback;
     }
   }
 
-  let state = { ...defaults, ...loadJSON(STATE_KEY, {}) };
-  let eventLog = loadJSON(LOG_KEY, []);
+  function storageSet(key, value) {
+    try {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    } catch {
+      // Storage is optional. Terminal must continue working without it.
+    }
+  }
 
+  let state = { ...defaults, ...storageGet(STATE_KEY, {}) };
+  let eventLog = storageGet(LOG_KEY, []);
   if (!Array.isArray(eventLog)) eventLog = [];
 
+  let booting = true;
   const commandHistory = [];
   let historyIndex = 0;
-  let booting = true;
 
   function saveState() {
-    localStorage.setItem(STATE_KEY, JSON.stringify(state));
+    storageSet(STATE_KEY, state);
   }
 
   function saveLog() {
     eventLog = eventLog.slice(-100);
-    localStorage.setItem(LOG_KEY, JSON.stringify(eventLog));
+    storageSet(LOG_KEY, eventLog);
   }
 
   function nowTime(date = new Date()) {
@@ -81,7 +90,10 @@
   }
 
   function nowDate(date = new Date()) {
-    return date.toLocaleDateString("en-CA");
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
   }
 
   function uptimeString() {
@@ -90,7 +102,6 @@
     const hours = Math.floor((seconds % 86400) / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-
     return (
       String(days).padStart(3, "0") + ":" +
       String(hours).padStart(2, "0") + ":" +
@@ -116,43 +127,38 @@
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  async function typedLine(text, className = "", delay = 18) {
+  async function typedLine(text, className = "", delay = 12) {
     const div = line("", className);
-    for (let i = 0; i < text.length; i++) {
-      div.textContent += text[i];
+    for (const char of text) {
+      div.textContent += char;
       screen.scrollTop = screen.scrollHeight;
-      if (delay > 0) await sleep(delay);
+      if (delay) await sleep(delay);
     }
   }
 
-  async function loadingLine(label, result = "OK", dots = 20) {
+  async function loadingLine(label, result, dots) {
     const div = line(label);
     for (let i = 0; i < dots; i++) {
-      await sleep(35 + Math.random() * 40);
+      await sleep(24 + Math.random() * 28);
       div.textContent += ".";
-      screen.scrollTop = screen.scrollHeight;
     }
-    await sleep(120 + Math.random() * 220);
+    await sleep(80 + Math.random() * 120);
     div.textContent += result;
+    screen.scrollTop = screen.scrollHeight;
   }
 
   function addEvent(message) {
-    eventLog.push({
-      time: nowTime(),
-      message
-    });
+    eventLog.push({ time: nowTime(), message });
     saveLog();
-  }
-
-  function weatherDirection() {
-    const idx = Math.floor(
-      ((Date.now() / 240000) + state.wind / 2) % directions.length
-    );
-    return directions[idx];
   }
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
+  }
+
+  function weatherDirection() {
+    const idx = Math.floor(((Date.now() / 240000) + state.wind / 2) % directions.length);
+    return directions[idx];
   }
 
   function evolveWeather() {
@@ -162,20 +168,15 @@
 
     state.temperature = clamp(
       state.temperature + (Math.random() - 0.53) * 0.24 * scale,
-      -46,
-      -8
+      -46, -8
     );
-
     state.wind = clamp(
       state.wind + (Math.random() - 0.48) * 0.7 * scale,
-      0.4,
-      28
+      0.4, 28
     );
-
     state.pressure = clamp(
       state.pressure + (Math.random() - 0.5) * 0.75 * scale,
-      716,
-      758
+      716, 758
     );
 
     const pressureStorm = clamp((738 - state.pressure) / 15, 0, 1);
@@ -187,8 +188,7 @@
       state.visibility +
       (targetVisibility - state.visibility) * 0.15 +
       (Math.random() - 0.5) * 0.18,
-      0.15,
-      12
+      0.15, 12
     );
 
     if (state.temperature < -5 && storm > 0.4 && Math.random() < 0.06) {
@@ -205,64 +205,58 @@
     saveState();
   }
 
-  const randomEvents = [
-    () => {
-      state.radio = "DEGRADED";
-      addEvent("RADIO LINK QUALITY BELOW NOMINAL THRESHOLD.");
-    },
-    () => {
-      state.sensor = "NO RESPONSE";
-      addEvent("EXT. SENSOR 03: NO RESPONSE.");
-      setTimeout(() => {
-        state.sensor = "ONLINE";
-        addEvent("EXT. SENSOR 03: TELEMETRY RESTORED.");
-        saveState();
-      }, 20000);
-    },
-    () => addEvent("REMOTE NODE WS-12: HANDSHAKE FAILED."),
-    () => addEvent("SUPPLY ROUTE STATUS: NO CURRENT TRAFFIC DATA."),
-    () => addEvent("AUTOMATED WEATHER PACKAGE TRANSMITTED."),
-    () => addEvent("MAINTENANCE REQUEST REMAINS UNACKNOWLEDGED."),
-    () => addEvent(`WIND GUST RECORDED: ${(state.wind + 4.2).toFixed(1)} m/s.`)
-  ];
-
   function maybeEvent() {
-    if (Date.now() - state.lastEventAt < 45000) return;
-    if (Math.random() > 0.2) return;
+    if (Date.now() - state.lastEventAt < 45000 || Math.random() > 0.2) return;
 
-    const event = randomEvents[Math.floor(Math.random() * randomEvents.length)];
-    event();
+    const events = [
+      () => {
+        state.radio = "DEGRADED";
+        addEvent("RADIO LINK QUALITY BELOW NOMINAL THRESHOLD.");
+      },
+      () => addEvent("REMOTE NODE WS-12: HANDSHAKE FAILED."),
+      () => addEvent("SUPPLY ROUTE STATUS: NO CURRENT TRAFFIC DATA."),
+      () => addEvent("AUTOMATED WEATHER PACKAGE TRANSMITTED."),
+      () => addEvent("MAINTENANCE REQUEST REMAINS UNACKNOWLEDGED."),
+      () => addEvent(`WIND GUST RECORDED: ${(state.wind + 4.2).toFixed(1)} m/s.`)
+    ];
+
+    events[Math.floor(Math.random() * events.length)]();
     state.lastEventAt = Date.now();
     saveState();
   }
 
-  async function bootSequence() {
-    booting = true;
-    form.classList.add("hidden");
-    input.disabled = true;
-
-    await typedLine("AOS/17 AUTOMATED WEATHER TERMINAL", "bright", 10);
-    await typedLine("Copyright (C) 2026 Lous12", "", 7);
-    line("");
-
-    await loadingLine("Checking memory", "OK", 25);
-    await loadingLine("Loading observation package", "OK", 17);
-    await loadingLine("Loading equipment monitor", "OK", 18);
-    await loadingLine("Loading local event buffer", "OK", 16);
-    await loadingLine("Initializing radio interface", "DEGRADED", 15);
-
-    line("");
-    await typedLine("Station node: WS-17", "", 10);
-    await typedLine("Personnel detected: 0", "", 10);
-    await typedLine("System ready.", "bright", 14);
-    line("");
-    await typedLine("Type HELP for available commands.", "dim", 8);
-    line("");
-
+  function unlockInput() {
     booting = false;
-    input.disabled = false;
-    form.classList.remove("hidden");
+    input.readOnly = false;
+    form.classList.remove("boot-locked");
     input.focus();
+  }
+
+  async function bootSequence() {
+    screen.innerHTML = "";
+
+    try {
+      await typedLine("AOS/17 AUTOMATED WEATHER TERMINAL", "bright", 8);
+      await typedLine("Copyright (C) 2026 Lous12", "", 5);
+      line("");
+
+      await loadingLine("Checking memory", "OK", 25);
+      await loadingLine("Loading observation package", "OK", 17);
+      await loadingLine("Loading equipment monitor", "OK", 18);
+      await loadingLine("Loading local event buffer", "OK", 16);
+      await loadingLine("Initializing radio interface", "DEGRADED", 15);
+
+      line("");
+      await typedLine("Station node: WS-17", "", 7);
+      await typedLine("Personnel detected: 0", "", 7);
+      await typedLine("System ready.", "bright", 9);
+      line("");
+      await typedLine("Type HELP for available commands.", "dim", 5);
+      line("");
+    } finally {
+      // Even if one boot animation step fails, the console is still usable.
+      unlockInput();
+    }
   }
 
   function printHelp() {
@@ -278,7 +272,7 @@
       "  CLS       Clear the terminal",
       "  ABOUT     Show terminal information",
       "",
-      "Commands are not case-sensitive."
+      "Use Up/Down arrows for command history."
     ]);
   }
 
@@ -286,11 +280,11 @@
     lines([
       "STATION STATUS",
       "----------------------------------------",
-      `NODE              WS-17`,
+      "NODE              WS-17",
       `DATE              ${nowDate()}`,
       `LOCAL TIME        ${nowTime()}`,
       `UPTIME            ${uptimeString()}`,
-      `PERSONNEL         0`,
+      "PERSONNEL         0",
       "",
       `PRIMARY POWER     ${state.power}`,
       `HEATING           ${state.heating}`,
@@ -305,7 +299,6 @@
 
   function printWeather() {
     evolveWeather();
-
     lines([
       "CURRENT OBSERVATION",
       "----------------------------------------",
@@ -321,20 +314,15 @@
   function printNodes() {
     line("KNOWN NETWORK NODES");
     line("----------------------------------------");
-
-    nodes.forEach(node => {
-      const id = node.id.padEnd(7);
-      const area = node.area.padEnd(20);
-      line(`${id} ${area} ${node.status}`);
+    nodes.forEach(([id, area, status]) => {
+      line(`${id.padEnd(7)} ${area.padEnd(20)} ${status}`);
     });
-
     line("");
     line("Network table last synchronized: UNKNOWN", "dim");
   }
 
   function printRadio() {
     const msg = radioMessages[Math.floor(Math.random() * radioMessages.length)];
-
     lines([
       "RADIO INTERFACE",
       "----------------------------------------",
@@ -345,7 +333,6 @@
       "",
       msg
     ]);
-
     addEvent(`RADIO QUERY: ${msg}`);
   }
 
@@ -357,10 +344,7 @@
 
     line("LAST 10 EVENTS");
     line("----------------------------------------");
-
-    eventLog.slice(-10).forEach(entry => {
-      line(`[${entry.time}] ${entry.message}`);
-    });
+    eventLog.slice(-10).forEach(entry => line(`[${entry.time}] ${entry.message}`));
   }
 
   function printAbout() {
@@ -371,7 +355,7 @@
       "Local browser simulation. No backend connection.",
       "",
       "Project: Lous12",
-      "Build:   0.1.4",
+      "Build:   0.1.5",
       "License: MIT"
     ]);
   }
@@ -380,48 +364,23 @@
     const trimmed = raw.trim();
     if (!trimmed) return;
 
-    const command = trimmed.toUpperCase();
-
     line(`C:\\WS17>${trimmed}`, "bright");
 
-    switch (command) {
-      case "HELP":
-        printHelp();
-        break;
-
-      case "STATUS":
-        printStatus();
-        break;
-
-      case "WEATHER":
-        printWeather();
-        break;
-
-      case "NODES":
-        printNodes();
-        break;
-
-      case "RADIO":
-        printRadio();
-        break;
-
-      case "LOG":
-        printLog();
-        break;
-
+    switch (trimmed.toUpperCase()) {
+      case "HELP": printHelp(); break;
+      case "STATUS": printStatus(); break;
+      case "WEATHER": printWeather(); break;
+      case "NODES": printNodes(); break;
+      case "RADIO": printRadio(); break;
+      case "LOG": printLog(); break;
       case "CLS":
       case "CLEAR":
         screen.innerHTML = "";
         break;
-
-      case "ABOUT":
-        printAbout();
-        break;
-
+      case "ABOUT": printAbout(); break;
       default:
         line(`Bad command or file name: ${trimmed}`);
         line("Type HELP for available commands.");
-        break;
     }
 
     line("");
@@ -429,40 +388,36 @@
 
   form.addEventListener("submit", event => {
     event.preventDefault();
-    if (booting) return;
+    if (booting || input.readOnly) return;
 
     const value = input.value;
-
     if (value.trim()) {
       commandHistory.push(value);
       historyIndex = commandHistory.length;
       execute(value);
     }
-
     input.value = "";
+    input.focus();
   });
 
   input.addEventListener("keydown", event => {
     if (event.key === "ArrowUp") {
       event.preventDefault();
-      if (commandHistory.length === 0) return;
+      if (!commandHistory.length) return;
       historyIndex = Math.max(0, historyIndex - 1);
-      input.value = commandHistory[historyIndex] ?? "";
-    }
-
-    if (event.key === "ArrowDown") {
+      input.value = commandHistory[historyIndex] || "";
+    } else if (event.key === "ArrowDown") {
       event.preventDefault();
-      if (commandHistory.length === 0) return;
+      if (!commandHistory.length) return;
       historyIndex = Math.min(commandHistory.length, historyIndex + 1);
-      input.value =
-        historyIndex >= commandHistory.length
-          ? ""
-          : commandHistory[historyIndex];
+      input.value = historyIndex >= commandHistory.length
+        ? ""
+        : commandHistory[historyIndex];
     }
   });
 
-  document.addEventListener("click", () => {
-    if (!booting) input.focus();
+  document.addEventListener("pointerdown", () => {
+    if (!booting && !input.readOnly) input.focus();
   });
 
   if (eventLog.length === 0) {
