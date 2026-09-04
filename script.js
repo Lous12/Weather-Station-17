@@ -1,15 +1,16 @@
 (() => {
   "use strict";
 
-  const $ = (id) => document.getElementById(id);
-  const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+  const screen = document.getElementById("screen");
+  const form = document.getElementById("command-form");
+  const input = document.getElementById("command-input");
 
-  const STORAGE_KEY = "ws17_state_v1";
-  const LOG_KEY = "ws17_log_v1";
-  const SERVICE_DATE = new Date("2025-11-21T08:30:00");
+  const STATE_KEY = "ws17_dos_state_v013";
+  const LOG_KEY = "ws17_dos_log_v013";
+
   const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 
-  const defaultState = {
+  const defaults = {
     temperature: -27.8,
     wind: 11.4,
     pressure: 742,
@@ -26,33 +27,33 @@
     lastEventAt: Date.now()
   };
 
-  function loadState() {
+  function loadJSON(key, fallback) {
     try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      return { ...defaultState, ...saved, startedAt: saved?.startedAt || Date.now() };
+      const parsed = JSON.parse(localStorage.getItem(key));
+      return parsed ?? fallback;
     } catch {
-      return { ...defaultState };
+      return fallback;
     }
   }
+
+  let state = { ...defaults, ...loadJSON(STATE_KEY, {}) };
+  let eventLog = loadJSON(LOG_KEY, []);
+
+  if (!Array.isArray(eventLog)) eventLog = [];
+
+  const commandHistory = [];
+  let historyIndex = 0;
 
   function saveState() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(STATE_KEY, JSON.stringify(state));
   }
 
-  let state = loadState();
-
-  function loadLog() {
-    try {
-      const log = JSON.parse(localStorage.getItem(LOG_KEY));
-      return Array.isArray(log) ? log.slice(-80) : [];
-    } catch {
-      return [];
-    }
+  function saveLog() {
+    eventLog = eventLog.slice(-100);
+    localStorage.setItem(LOG_KEY, JSON.stringify(eventLog));
   }
 
-  let logEntries = loadLog();
-
-  function stamp(date = new Date()) {
+  function nowTime(date = new Date()) {
     return date.toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
@@ -61,251 +62,318 @@
     });
   }
 
-  function addLog(message) {
-    logEntries.push({ time: stamp(), message });
-    logEntries = logEntries.slice(-80);
-    localStorage.setItem(LOG_KEY, JSON.stringify(logEntries));
-    renderLog();
+  function nowDate(date = new Date()) {
+    return date.toLocaleDateString("en-CA");
   }
 
-  function renderLog() {
-    const el = $("log");
-    el.innerHTML = "";
-    [...logEntries].reverse().forEach((entry) => {
-      const row = document.createElement("div");
-      row.className = "log-entry";
+  function uptimeString() {
+    const seconds = Math.max(0, Math.floor((Date.now() - state.startedAt) / 1000));
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
 
-      const time = document.createElement("span");
-      time.className = "log-time";
-      time.textContent = `[${entry.time}]`;
+    return (
+      String(days).padStart(3, "0") + ":" +
+      String(hours).padStart(2, "0") + ":" +
+      String(minutes).padStart(2, "0") + ":" +
+      String(secs).padStart(2, "0")
+    );
+  }
 
-      const msg = document.createElement("span");
-      msg.className = "log-msg";
-      msg.textContent = entry.message;
+  function line(text = "", className = "") {
+    const div = document.createElement("div");
+    div.className = `line ${className}`.trim();
+    div.textContent = text;
+    screen.appendChild(div);
+    screen.scrollTop = screen.scrollHeight;
+  }
 
-      row.append(time, msg);
-      el.appendChild(row);
+  function lines(items, className = "") {
+    items.forEach(item => line(item, className));
+  }
+
+  function addEvent(message) {
+    eventLog.push({
+      time: nowTime(),
+      message
     });
+    saveLog();
   }
 
-  function setStatus(id, value) {
-    const el = $(id);
-    el.textContent = value;
-    el.className =
-      value === "ONLINE" ? "ok" :
-      value === "DEGRADED" || value === "UNSTABLE" ? "degraded" :
-      value === "OFFLINE" || value === "NO RESPONSE" ? "danger" : "";
-  }
-
-  function updateClock() {
-    const now = new Date();
-    $("date").textContent = now.toLocaleDateString("en-CA");
-    $("clock").textContent = stamp(now);
-
-    const elapsed = Math.max(0, Date.now() - state.startedAt);
-    const totalSeconds = Math.floor(elapsed / 1000);
-    const days = Math.floor(totalSeconds / 86400);
-    const hours = Math.floor((totalSeconds % 86400) / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-
-    $("uptime").textContent =
-      `UP ${String(days).padStart(3, "0")}:` +
-      `${String(hours).padStart(2, "0")}:` +
-      `${String(minutes).padStart(2, "0")}:` +
-      `${String(seconds).padStart(2, "0")}`;
-
-    const serviceDays = Math.max(0, Math.floor((now - SERVICE_DATE) / 86400000));
-    $("service-days").textContent = `${serviceDays} DAYS AGO`;
+  function weatherDirection() {
+    const idx = Math.floor(
+      ((Date.now() / 240000) + state.wind / 2) % directions.length
+    );
+    return directions[idx];
   }
 
   function evolveWeather() {
     const now = Date.now();
-    const elapsedMinutes = Math.max(1, (now - state.lastWeatherUpdate) / 60000);
-    const scale = Math.min(elapsedMinutes, 5);
+    const elapsedMinutes = Math.max(0.2, (now - state.lastWeatherUpdate) / 60000);
+    const scale = Math.min(elapsedMinutes, 4);
 
-    state.temperature = clamp(state.temperature + (Math.random() - 0.54) * 0.28 * scale, -46, -8);
-    state.wind = clamp(state.wind + (Math.random() - 0.48) * 0.8 * scale, 0.4, 27);
-    state.pressure = clamp(state.pressure + (Math.random() - 0.5) * 0.8 * scale, 716, 758);
+    state.temperature = clamp(
+      state.temperature + (Math.random() - 0.53) * 0.24 * scale,
+      -46,
+      -8
+    );
 
-    const stormPressure = clamp((738 - state.pressure) / 15, 0, 1);
-    const stormWind = clamp((state.wind - 10) / 12, 0, 1);
-    const storm = clamp(stormPressure * 0.65 + stormWind * 0.55, 0, 1);
+    state.wind = clamp(
+      state.wind + (Math.random() - 0.48) * 0.7 * scale,
+      0.4,
+      28
+    );
+
+    state.pressure = clamp(
+      state.pressure + (Math.random() - 0.5) * 0.75 * scale,
+      716,
+      758
+    );
+
+    const pressureStorm = clamp((738 - state.pressure) / 15, 0, 1);
+    const windStorm = clamp((state.wind - 10) / 13, 0, 1);
+    const storm = clamp(pressureStorm * 0.65 + windStorm * 0.55, 0, 1);
 
     const targetVisibility = 8.5 - storm * 7.8;
     state.visibility = clamp(
-      state.visibility + (targetVisibility - state.visibility) * 0.16 + (Math.random() - 0.5) * 0.25,
+      state.visibility +
+      (targetVisibility - state.visibility) * 0.15 +
+      (Math.random() - 0.5) * 0.18,
       0.15,
       12
     );
 
-    if (state.temperature < -5 && storm > 0.35 && Math.random() < 0.08) {
+    if (state.temperature < -5 && storm > 0.4 && Math.random() < 0.06) {
       state.snow = clamp(state.snow + 1, 0, 220);
     }
 
     state.condition =
       storm > 0.78 ? "BLIZZARD" :
-      storm > 0.52 ? "SNOW / WIND" :
+      storm > 0.52 ? "SNOW/WIND" :
       storm > 0.30 ? "UNSTABLE" :
       "STABLE";
 
     state.lastWeatherUpdate = now;
     saveState();
-    renderWeather();
-    updateAlert(storm);
   }
 
-  function renderWeather() {
-    $("temperature").textContent = state.temperature.toFixed(1);
-    $("wind").textContent = state.wind.toFixed(1);
-    $("pressure").textContent = Math.round(state.pressure);
-    $("visibility").textContent = state.visibility.toFixed(1);
-    $("snow").textContent = Math.round(state.snow);
-    $("condition").textContent = state.condition;
-
-    const directionIndex = Math.floor((Date.now() / 180000 + state.wind) % directions.length);
-    $("wind-dir").textContent = directions[directionIndex];
-
-    setStatus("power", state.power);
-    setStatus("heating", state.heating);
-    setStatus("radio", state.radio);
-    setStatus("antenna", state.antenna);
-    setStatus("sensor", state.sensor);
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
   }
 
-  function updateAlert(storm) {
-    const panel = $("alert-panel");
-    panel.classList.remove("severe");
-
-    if (storm > 0.78) {
-      $("alert-level").textContent = "WARNING";
-      $("alert-level").className = "danger";
-      $("alert-text").textContent =
-        "BLIZZARD CONDITIONS. VISIBILITY SEVERELY REDUCED. EXTERNAL TRAVEL NOT ADVISED.";
-      panel.classList.add("severe");
-    } else if (state.temperature < -36) {
-      $("alert-level").textContent = "WARNING";
-      $("alert-level").className = "danger";
-      $("alert-text").textContent =
-        "EXTREME COLD. OUTDOOR EXPOSURE LIMITS EXCEEDED.";
-    } else if (storm > 0.48) {
-      $("alert-level").textContent = "ADVISORY";
-      $("alert-level").className = "degraded";
-      $("alert-text").textContent =
-        "WEATHER FRONT APPROACHING. WIND SPEED INCREASING. RADIO QUALITY MAY DEGRADE.";
-    } else {
-      $("alert-level").textContent = "ADVISORY";
-      $("alert-level").className = "";
-      $("alert-text").textContent =
-        "COLD WEATHER CONDITIONS. AUTOMATED SYSTEMS NOMINAL.";
-    }
-  }
-
-  const events = [
-    {
-      weight: 4,
-      run() {
-        state.radio = "DEGRADED";
-        addLog("RADIO LINK QUALITY BELOW NOMINAL THRESHOLD.");
-      }
+  const randomEvents = [
+    () => {
+      state.radio = "DEGRADED";
+      addEvent("RADIO LINK QUALITY BELOW NOMINAL THRESHOLD.");
     },
-    {
-      weight: 2,
-      run() {
-        state.radio = "OFFLINE";
-        addLog("RADIO LINK LOST. AUTOMATIC RECONNECT SEQUENCE STARTED.");
-        window.setTimeout(() => {
-          state.radio = "DEGRADED";
-          addLog("RADIO CARRIER RECOVERED. DATA LINK REMAINS DEGRADED.");
-          renderWeather();
-          saveState();
-        }, 18000);
-      }
+    () => {
+      state.sensor = "NO RESPONSE";
+      addEvent("EXT. SENSOR 03: NO RESPONSE.");
+      setTimeout(() => {
+        state.sensor = "ONLINE";
+        addEvent("EXT. SENSOR 03: TELEMETRY RESTORED.");
+        saveState();
+      }, 20000);
     },
-    {
-      weight: 2,
-      run() {
-        state.sensor = "NO RESPONSE";
-        addLog("EXTERNAL SENSOR 03: NO RESPONSE.");
-        window.setTimeout(() => {
-          state.sensor = "ONLINE";
-          addLog("EXTERNAL SENSOR 03: TELEMETRY RESTORED.");
-          renderWeather();
-          saveState();
-        }, 24000);
-      }
-    },
-    {
-      weight: 3,
-      run() {
-        addLog("AUTOMATED WEATHER OBSERVATION PACKAGE TRANSMITTED.");
-      }
-    },
-    {
-      weight: 2,
-      run() {
-        addLog("REMOTE NODE WS-12: HANDSHAKE FAILED.");
-      }
-    },
-    {
-      weight: 2,
-      run() {
-        addLog("SUPPLY ROUTE STATUS: NO CURRENT TRAFFIC DATA.");
-      }
-    },
-    {
-      weight: 1,
-      run() {
-        addLog("MAINTENANCE REQUEST REMAINS UNACKNOWLEDGED.");
-      }
-    },
-    {
-      weight: 3,
-      run() {
-        addLog(`WIND GUST RECORDED: ${Math.max(state.wind + 4, 8).toFixed(1)} m/s.`);
-      }
-    }
+    () => addEvent("REMOTE NODE WS-12: HANDSHAKE FAILED."),
+    () => addEvent("SUPPLY ROUTE STATUS: NO CURRENT TRAFFIC DATA."),
+    () => addEvent("AUTOMATED WEATHER PACKAGE TRANSMITTED."),
+    () => addEvent("MAINTENANCE REQUEST REMAINS UNACKNOWLEDGED."),
+    () => addEvent(`WIND GUST RECORDED: ${(state.wind + 4.2).toFixed(1)} m/s.`)
   ];
 
-  function weightedEvent() {
-    const pool = [];
-    for (const event of events) {
-      for (let i = 0; i < event.weight; i++) pool.push(event);
-    }
-    return pool[Math.floor(Math.random() * pool.length)];
+  function maybeEvent() {
+    if (Date.now() - state.lastEventAt < 45000) return;
+    if (Math.random() > 0.2) return;
+
+    const event = randomEvents[Math.floor(Math.random() * randomEvents.length)];
+    event();
+    state.lastEventAt = Date.now();
+    saveState();
   }
 
-  function maybeCreateEvent() {
-    const minDelay = 45000;
-    if (Date.now() - state.lastEventAt < minDelay) return;
-
-    if (Math.random() < 0.22) {
-      weightedEvent().run();
-      state.lastEventAt = Date.now();
-      saveState();
-      renderWeather();
-    }
+  function printBoot() {
+    lines([
+      "AOS/17 AUTOMATED WEATHER TERMINAL",
+      "Version 0.1.3",
+      "Copyright (C) 2026 Lous12",
+      "",
+      "Initializing station interface...",
+      "Loading observation package..........OK",
+      "Loading equipment monitor............OK",
+      "Loading local event buffer...........OK",
+      "Remote network link..................DEGRADED",
+      "",
+      "Type HELP for available commands.",
+      ""
+    ]);
   }
 
-  $("clear-log").addEventListener("click", () => {
-    logEntries = [];
-    localStorage.removeItem(LOG_KEY);
-    addLog("LOCAL EVENT BUFFER CLEARED.");
+  function printHelp() {
+    lines([
+      "Available commands:",
+      "",
+      "  HELP      Show this command list",
+      "  STATUS    Show station equipment status",
+      "  WEATHER   Show current weather observation",
+      "  LOG       Show the last 10 station events",
+      "  CLS       Clear the terminal",
+      "  ABOUT     Show terminal information",
+      "",
+      "Commands are not case-sensitive."
+    ]);
+  }
+
+  function printStatus() {
+    lines([
+      "STATION STATUS",
+      "----------------------------------------",
+      `NODE              WS-17`,
+      `DATE              ${nowDate()}`,
+      `LOCAL TIME        ${nowTime()}`,
+      `UPTIME            ${uptimeString()}`,
+      `PERSONNEL         0`,
+      "",
+      `PRIMARY POWER     ${state.power}`,
+      `HEATING           ${state.heating}`,
+      `RADIO LINK        ${state.radio}`,
+      `MAIN ANTENNA      ${state.antenna}`,
+      `EXT. SENSOR 03    ${state.sensor}`,
+      "",
+      "LAST SERVICE      287 DAYS AGO",
+      "MAINTENANCE       OVERDUE"
+    ]);
+  }
+
+  function printWeather() {
+    evolveWeather();
+
+    lines([
+      "CURRENT OBSERVATION",
+      "----------------------------------------",
+      `AIR TEMPERATURE   ${state.temperature.toFixed(1)} C`,
+      `WIND              ${weatherDirection()} ${state.wind.toFixed(1)} m/s`,
+      `PRESSURE          ${Math.round(state.pressure)} mmHg`,
+      `VISIBILITY        ${state.visibility.toFixed(1)} km`,
+      `SNOW DEPTH        ${Math.round(state.snow)} cm`,
+      `CONDITION         ${state.condition}`
+    ]);
+  }
+
+  function printLog() {
+    if (eventLog.length === 0) {
+      line("No events recorded.");
+      return;
+    }
+
+    line("LAST 10 EVENTS");
+    line("----------------------------------------");
+
+    eventLog.slice(-10).forEach(entry => {
+      line(`[${entry.time}] ${entry.message}`);
+    });
+  }
+
+  function printAbout() {
+    lines([
+      "WEATHER STATION 17",
+      "",
+      "A fictional automated weather terminal.",
+      "Local browser simulation. No backend connection.",
+      "",
+      "Project: Lous12",
+      "Build:   0.1.3",
+      "License: MIT"
+    ]);
+  }
+
+  function execute(raw) {
+    const trimmed = raw.trim();
+    if (!trimmed) return;
+
+    const command = trimmed.toUpperCase();
+
+    line(`C:\\WS17>${trimmed}`, "bright");
+
+    switch (command) {
+      case "HELP":
+        printHelp();
+        break;
+
+      case "STATUS":
+        printStatus();
+        break;
+
+      case "WEATHER":
+        printWeather();
+        break;
+
+      case "LOG":
+        printLog();
+        break;
+
+      case "CLS":
+      case "CLEAR":
+        screen.innerHTML = "";
+        break;
+
+      case "ABOUT":
+        printAbout();
+        break;
+
+      default:
+        line(`Bad command or file name: ${trimmed}`);
+        line("Type HELP for available commands.");
+        break;
+    }
+
+    line("");
+  }
+
+  form.addEventListener("submit", event => {
+    event.preventDefault();
+
+    const value = input.value;
+    if (value.trim()) {
+      commandHistory.push(value);
+      historyIndex = commandHistory.length;
+      execute(value);
+    }
+
+    input.value = "";
   });
 
-  if (logEntries.length === 0) {
-    addLog("AUTOMATED OBSERVATION SYSTEM INITIALIZED.");
-    addLog("NO ACTIVE PERSONNEL SESSION DETECTED.");
-    addLog("REMOTE NODE WS-12: STATUS UNKNOWN.");
-  } else {
-    addLog("LOCAL TERMINAL SESSION OPENED.");
+  input.addEventListener("keydown", event => {
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      if (commandHistory.length === 0) return;
+      historyIndex = Math.max(0, historyIndex - 1);
+      input.value = commandHistory[historyIndex] ?? "";
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      if (commandHistory.length === 0) return;
+      historyIndex = Math.min(commandHistory.length, historyIndex + 1);
+      input.value =
+        historyIndex >= commandHistory.length
+          ? ""
+          : commandHistory[historyIndex];
+    }
+  });
+
+  document.addEventListener("click", () => input.focus());
+
+  if (eventLog.length === 0) {
+    addEvent("AUTOMATED OBSERVATION SYSTEM INITIALIZED.");
+    addEvent("NO ACTIVE PERSONNEL SESSION DETECTED.");
+    addEvent("REMOTE NODE WS-12: STATUS UNKNOWN.");
   }
 
-  renderLog();
-  renderWeather();
-  updateClock();
+  printBoot();
+  input.focus();
 
-  setInterval(updateClock, 1000);
-  setInterval(evolveWeather, 12000);
-  setInterval(maybeCreateEvent, 7000);
+  setInterval(evolveWeather, 15000);
+  setInterval(maybeEvent, 8000);
 })();
