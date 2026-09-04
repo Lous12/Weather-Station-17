@@ -2,42 +2,39 @@
 
 A small atmospheric DOS-style browser project by **Lous12**.
 
-The project is intentionally simple and will grow gradually instead of becoming a large interface immediately.
+## Version 0.1.4
 
-## Version 0.1.3
+This version turns the site into a more complete terminal experience.
 
-The page now behaves like a terminal instead of a dashboard.
+### Added
 
-Available commands:
+- animated boot/loading sequence when the page opens
+- command input stays locked until the station finishes loading
+- `NODES` command
+- `RADIO` command
+- persistent station event log
+- command history with Up/Down arrows
+
+### Commands
 
 ```text
 HELP
 STATUS
 WEATHER
+NODES
+RADIO
 LOG
 CLS
 ABOUT
 ```
 
-Command history also works with the Up/Down arrow keys.
-
-Weather and station events continue to change in the background and are stored locally in the browser.
+The project will continue to grow slowly, with new commands and lore added one layer at a time.
 
 ## GitHub Pages
 
 No backend is required.
 
-Upload these files to the repository root:
-
-```text
-index.html
-style.css
-script.js
-README.md
-LICENSE
-```
-
-Then enable:
+Upload the project files to the repository root and enable:
 
 ```text
 Settings
@@ -46,24 +43,6 @@ Settings
 → main
 → /(root)
 ```
-
-## Planned approach
-
-New commands and lore systems will be added gradually.
-
-Possible future commands:
-
-```text
-NODES
-RADIO
-REPORT
-HISTORY
-CONNECT
-DIR
-TYPE
-```
-
-They are intentionally not implemented yet.
 
 ## License
 

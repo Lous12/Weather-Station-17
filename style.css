@@ -6,7 +6,7 @@
   --bg: #050505;
   --fg: #cfcfcf;
   --bright: #f2f2f2;
-  --dim: #777777;
+  --dim: #737373;
 }
 
 html,
@@ -14,11 +14,13 @@ body {
   margin: 0;
   min-height: 100%;
   background: var(--bg);
-  color: var(--fg);
+  color-scheme: dark;
 }
 
 body {
   min-height: 100vh;
+  background: var(--bg);
+  color: var(--fg);
   font-family: "Courier New", Courier, monospace;
   font-size: 16px;
   line-height: 1.25;
@@ -40,7 +42,7 @@ body {
   white-space: pre-wrap;
   overflow-wrap: break-word;
   scrollbar-width: thin;
-  scrollbar-color: #444 var(--bg);
+  scrollbar-color: #3b3b3b var(--bg);
 }
 
 .line {
@@ -59,9 +61,12 @@ body {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 0;
   min-height: 1.5em;
   color: var(--bright);
+}
+
+.command-line.hidden {
+  visibility: hidden;
 }
 
 #prompt-label {
@@ -80,11 +85,15 @@ body {
   color: var(--bright);
   caret-color: transparent;
   font: inherit;
-  text-transform: none;
+}
+
+#command-input:disabled {
+  opacity: 1;
 }
 
 .cursor {
   flex: 0 0 auto;
+  margin-left: 1px;
   color: var(--bright);
   animation: blink 1s steps(1, end) infinite;
 }

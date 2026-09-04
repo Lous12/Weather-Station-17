@@ -11,7 +11,7 @@
   <main id="terminal" class="terminal" aria-label="Weather Station 17 terminal">
     <div id="screen" class="screen" aria-live="polite"></div>
 
-    <form id="command-form" class="command-line" autocomplete="off">
+    <form id="command-form" class="command-line hidden" autocomplete="off">
       <label for="command-input" id="prompt-label">C:\WS17&gt;</label>
       <input
         id="command-input"
@@ -21,6 +21,7 @@
         autocapitalize="off"
         autocomplete="off"
         aria-label="Command"
+        disabled
       >
       <span class="cursor" aria-hidden="true">█</span>
     </form>

@@ -5,8 +5,8 @@
   const form = document.getElementById("command-form");
   const input = document.getElementById("command-input");
 
-  const STATE_KEY = "ws17_dos_state_v013";
-  const LOG_KEY = "ws17_dos_log_v013";
+  const STATE_KEY = "ws17_dos_state_v014";
+  const LOG_KEY = "ws17_dos_log_v014";
 
   const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 
@@ -27,6 +27,23 @@
     lastEventAt: Date.now()
   };
 
+  const nodes = [
+    { id: "WS-03", area: "COASTAL SECTOR", status: "NO DATA" },
+    { id: "WS-08", area: "MOUNTAIN RELAY", status: "ONLINE" },
+    { id: "WS-12", area: "NORTHERN SECTOR", status: "OFFLINE" },
+    { id: "WS-17", area: "LOCAL NODE", status: "ONLINE" },
+    { id: "WS-21", area: "EASTERN RIDGE", status: "UNKNOWN" }
+  ];
+
+  const radioMessages = [
+    "CARRIER DETECTED ON 91.7 MHz. CONTENT UNREADABLE.",
+    "AUTOMATED BEACON RECEIVED FROM WS-08.",
+    "WS-12 DID NOT RESPOND TO NETWORK POLL.",
+    "NO VOICE TRAFFIC DETECTED.",
+    "WEATHER PACKAGE QUEUED FOR TRANSMISSION.",
+    "STATIC LEVEL ABOVE NORMAL."
+  ];
+
   function loadJSON(key, fallback) {
     try {
       const parsed = JSON.parse(localStorage.getItem(key));
@@ -43,6 +60,7 @@
 
   const commandHistory = [];
   let historyIndex = 0;
+  let booting = true;
 
   function saveState() {
     localStorage.setItem(STATE_KEY, JSON.stringify(state));
@@ -87,10 +105,35 @@
     div.textContent = text;
     screen.appendChild(div);
     screen.scrollTop = screen.scrollHeight;
+    return div;
   }
 
   function lines(items, className = "") {
     items.forEach(item => line(item, className));
+  }
+
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  async function typedLine(text, className = "", delay = 18) {
+    const div = line("", className);
+    for (let i = 0; i < text.length; i++) {
+      div.textContent += text[i];
+      screen.scrollTop = screen.scrollHeight;
+      if (delay > 0) await sleep(delay);
+    }
+  }
+
+  async function loadingLine(label, result = "OK", dots = 20) {
+    const div = line(label);
+    for (let i = 0; i < dots; i++) {
+      await sleep(35 + Math.random() * 40);
+      div.textContent += ".";
+      screen.scrollTop = screen.scrollHeight;
+    }
+    await sleep(120 + Math.random() * 220);
+    div.textContent += result;
   }
 
   function addEvent(message) {
@@ -106,6 +149,10 @@
       ((Date.now() / 240000) + state.wind / 2) % directions.length
     );
     return directions[idx];
+  }
+
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
   }
 
   function evolveWeather() {
@@ -158,10 +205,6 @@
     saveState();
   }
 
-  function clamp(value, min, max) {
-    return Math.min(max, Math.max(min, value));
-  }
-
   const randomEvents = [
     () => {
       state.radio = "DEGRADED";
@@ -193,21 +236,33 @@
     saveState();
   }
 
-  function printBoot() {
-    lines([
-      "AOS/17 AUTOMATED WEATHER TERMINAL",
-      "Version 0.1.3",
-      "Copyright (C) 2026 Lous12",
-      "",
-      "Initializing station interface...",
-      "Loading observation package..........OK",
-      "Loading equipment monitor............OK",
-      "Loading local event buffer...........OK",
-      "Remote network link..................DEGRADED",
-      "",
-      "Type HELP for available commands.",
-      ""
-    ]);
+  async function bootSequence() {
+    booting = true;
+    form.classList.add("hidden");
+    input.disabled = true;
+
+    await typedLine("AOS/17 AUTOMATED WEATHER TERMINAL", "bright", 10);
+    await typedLine("Copyright (C) 2026 Lous12", "", 7);
+    line("");
+
+    await loadingLine("Checking memory", "OK", 25);
+    await loadingLine("Loading observation package", "OK", 17);
+    await loadingLine("Loading equipment monitor", "OK", 18);
+    await loadingLine("Loading local event buffer", "OK", 16);
+    await loadingLine("Initializing radio interface", "DEGRADED", 15);
+
+    line("");
+    await typedLine("Station node: WS-17", "", 10);
+    await typedLine("Personnel detected: 0", "", 10);
+    await typedLine("System ready.", "bright", 14);
+    line("");
+    await typedLine("Type HELP for available commands.", "dim", 8);
+    line("");
+
+    booting = false;
+    input.disabled = false;
+    form.classList.remove("hidden");
+    input.focus();
   }
 
   function printHelp() {
@@ -217,6 +272,8 @@
       "  HELP      Show this command list",
       "  STATUS    Show station equipment status",
       "  WEATHER   Show current weather observation",
+      "  NODES     Show known weather network nodes",
+      "  RADIO     Check radio interface",
       "  LOG       Show the last 10 station events",
       "  CLS       Clear the terminal",
       "  ABOUT     Show terminal information",
@@ -261,6 +318,37 @@
     ]);
   }
 
+  function printNodes() {
+    line("KNOWN NETWORK NODES");
+    line("----------------------------------------");
+
+    nodes.forEach(node => {
+      const id = node.id.padEnd(7);
+      const area = node.area.padEnd(20);
+      line(`${id} ${area} ${node.status}`);
+    });
+
+    line("");
+    line("Network table last synchronized: UNKNOWN", "dim");
+  }
+
+  function printRadio() {
+    const msg = radioMessages[Math.floor(Math.random() * radioMessages.length)];
+
+    lines([
+      "RADIO INTERFACE",
+      "----------------------------------------",
+      `LINK STATUS       ${state.radio}`,
+      "PRIMARY CHANNEL   91.7 MHz",
+      "BACKUP CHANNEL    104.3 MHz",
+      "ENCRYPTION        NONE",
+      "",
+      msg
+    ]);
+
+    addEvent(`RADIO QUERY: ${msg}`);
+  }
+
   function printLog() {
     if (eventLog.length === 0) {
       line("No events recorded.");
@@ -283,7 +371,7 @@
       "Local browser simulation. No backend connection.",
       "",
       "Project: Lous12",
-      "Build:   0.1.3",
+      "Build:   0.1.4",
       "License: MIT"
     ]);
   }
@@ -307,6 +395,14 @@
 
       case "WEATHER":
         printWeather();
+        break;
+
+      case "NODES":
+        printNodes();
+        break;
+
+      case "RADIO":
+        printRadio();
         break;
 
       case "LOG":
@@ -333,8 +429,10 @@
 
   form.addEventListener("submit", event => {
     event.preventDefault();
+    if (booting) return;
 
     const value = input.value;
+
     if (value.trim()) {
       commandHistory.push(value);
       historyIndex = commandHistory.length;
@@ -363,7 +461,9 @@
     }
   });
 
-  document.addEventListener("click", () => input.focus());
+  document.addEventListener("click", () => {
+    if (!booting) input.focus();
+  });
 
   if (eventLog.length === 0) {
     addEvent("AUTOMATED OBSERVATION SYSTEM INITIALIZED.");
@@ -371,9 +471,8 @@
     addEvent("REMOTE NODE WS-12: STATUS UNKNOWN.");
   }
 
-  printBoot();
-  input.focus();
-
   setInterval(evolveWeather, 15000);
   setInterval(maybeEvent, 8000);
+
+  bootSequence();
 })();
