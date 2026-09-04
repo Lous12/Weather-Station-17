@@ -5,8 +5,8 @@
   const form = document.getElementById("command-form");
   const input = document.getElementById("command-input");
 
-  const STATE_KEY = "ws17_dos_state_v015";
-  const LOG_KEY = "ws17_dos_log_v015";
+  const STATE_KEY = "ws17_dos_state_v016";
+  const LOG_KEY = "ws17_dos_log_v016";
 
   const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 
@@ -43,6 +43,202 @@
     "WEATHER PACKAGE QUEUED FOR TRANSMISSION.",
     "STATIC LEVEL ABOVE NORMAL."
   ];
+
+  const fileSystem = {
+    "C:\\WS17": {
+      type: "dir",
+      entries: [
+        { name: "SYSTEM", type: "dir" },
+        { name: "NETWORK", type: "dir" },
+        { name: "LOGS", type: "dir" },
+        { name: "README.TXT", type: "file", size: 734 },
+        { name: "STATION.TXT", type: "file", size: 468 }
+      ]
+    },
+
+    "C:\\WS17\\SYSTEM": {
+      type: "dir",
+      entries: [
+        { name: "MAINT.TXT", type: "file", size: 401 },
+        { name: "BOOT.LOG", type: "file", size: 286 }
+      ]
+    },
+
+    "C:\\WS17\\NETWORK": {
+      type: "dir",
+      entries: [
+        { name: "NODES.TXT", type: "file", size: 512 },
+        { name: "RADIO.TXT", type: "file", size: 394 }
+      ]
+    },
+
+    "C:\\WS17\\LOGS": {
+      type: "dir",
+      entries: [
+        { name: "EVENTS.LOG", type: "dynamic", size: 0 }
+      ]
+    }
+  };
+
+  const textFiles = {
+    "C:\\WS17\\README.TXT": [
+      "AOS/17 AUTOMATED WEATHER TERMINAL",
+      "",
+      "This terminal provides local weather observations,",
+      "equipment state and limited access to network data.",
+      "",
+      "Use HELP to list available commands.",
+      "",
+      "The station is configured for unattended operation.",
+      "Manual maintenance remains overdue."
+    ],
+
+    "C:\\WS17\\STATION.TXT": [
+      "STATION IDENTIFICATION",
+      "----------------------",
+      "NODE:       WS-17",
+      "TYPE:       AUTOMATED WEATHER OBSERVATION STATION",
+      "SECTOR:     LOCAL NODE",
+      "PERSONNEL:  0",
+      "",
+      "Remote administration link is unavailable.",
+      "Local terminal access remains enabled."
+    ],
+
+    "C:\\WS17\\SYSTEM\\MAINT.TXT": [
+      "MAINTENANCE RECORD",
+      "------------------",
+      "LAST SERVICE: 287 DAYS AGO",
+      "CURRENT STATUS: OVERDUE",
+      "",
+      "Scheduled inspection was not completed.",
+      "No technician acknowledgement was received.",
+      "",
+      "Automatic systems remain within operational limits."
+    ],
+
+    "C:\\WS17\\SYSTEM\\BOOT.LOG": [
+      "AOS/17 BOOT RECORD",
+      "------------------",
+      "OBSERVATION PACKAGE........OK",
+      "EQUIPMENT MONITOR..........OK",
+      "LOCAL EVENT BUFFER.........OK",
+      "RADIO INTERFACE............DEGRADED",
+      "",
+      "SYSTEM READY."
+    ],
+
+    "C:\\WS17\\NETWORK\\NODES.TXT": [
+      "WEATHER NETWORK NODE TABLE",
+      "--------------------------",
+      "WS-03  COASTAL SECTOR     NO DATA",
+      "WS-08  MOUNTAIN RELAY     ONLINE",
+      "WS-12  NORTHERN SECTOR    OFFLINE",
+      "WS-17  LOCAL NODE         ONLINE",
+      "WS-21  EASTERN RIDGE      UNKNOWN",
+      "",
+      "LAST FULL NETWORK SYNCHRONIZATION: UNKNOWN"
+    ],
+
+    "C:\\WS17\\NETWORK\\RADIO.TXT": [
+      "RADIO CONFIGURATION",
+      "-------------------",
+      "PRIMARY CHANNEL: 91.7 MHz",
+      "BACKUP CHANNEL:  104.3 MHz",
+      "ENCRYPTION:      NONE",
+      "LINK STATE:      DEGRADED",
+      "",
+      "Automated network polling remains enabled."
+    ]
+  };
+
+  function normalizePath(rawPath = "") {
+    let path = rawPath.trim().replace(/\//g, "\\").toUpperCase();
+
+    if (!path || path === "." || path === ".\\") {
+      return "C:\\WS17";
+    }
+
+    if (path.startsWith("C:\\")) {
+      return path.replace(/\\+$/, "");
+    }
+
+    if (path.startsWith("\\")) {
+      return ("C:\\WS17" + path).replace(/\\+$/, "");
+    }
+
+    return ("C:\\WS17\\" + path).replace(/\\+$/, "");
+  }
+
+  function printDirectory(rawPath = "") {
+    const path = normalizePath(rawPath);
+    const dir = fileSystem[path];
+
+    if (!dir || dir.type !== "dir") {
+      line("File not found.");
+      return;
+    }
+
+    line(" Volume in drive C is WS17");
+    line(` Directory of ${path}`);
+    line("");
+
+    let fileCount = 0;
+    let dirCount = 0;
+    let totalBytes = 0;
+
+    dir.entries.forEach(entry => {
+      if (entry.type === "dir") {
+        dirCount += 1;
+        line(`${"<DIR>".padStart(10)}  ${entry.name}`);
+      } else {
+        fileCount += 1;
+        const size = entry.type === "dynamic"
+          ? Math.max(1, eventLog.length * 64)
+          : entry.size;
+        totalBytes += size;
+        line(`${String(size).padStart(10)}  ${entry.name}`);
+      }
+    });
+
+    line("");
+    line(`${String(fileCount).padStart(8)} File(s) ${String(totalBytes).padStart(10)} bytes`);
+    line(`${String(dirCount).padStart(8)} Dir(s)`);
+  }
+
+  function printFile(rawPath) {
+    if (!rawPath || !rawPath.trim()) {
+      line("Required parameter missing.");
+      return;
+    }
+
+    const path = normalizePath(rawPath);
+
+    if (path === "C:\\WS17\\LOGS\\EVENTS.LOG") {
+      if (eventLog.length === 0) {
+        line("EVENTS.LOG is empty.");
+        return;
+      }
+
+      eventLog.forEach(entry => {
+        line(`[${entry.time}] ${entry.message}`);
+      });
+      return;
+    }
+
+    const content = textFiles[path];
+
+    if (!content) {
+      if (fileSystem[path]?.type === "dir") {
+        line("Access denied.");
+      } else {
+        line("File not found.");
+      }
+      return;
+    }
+
+    lines(content);
+  }
 
   // Works on GitHub Pages, and fails safely if localStorage is blocked
   // when the HTML file is opened directly from disk.
@@ -244,6 +440,7 @@
       await loadingLine("Loading observation package", "OK", 17);
       await loadingLine("Loading equipment monitor", "OK", 18);
       await loadingLine("Loading local event buffer", "OK", 16);
+      await loadingLine("Mounting local filesystem", "OK", 18);
       await loadingLine("Initializing radio interface", "DEGRADED", 15);
 
       line("");
@@ -263,14 +460,22 @@
     lines([
       "Available commands:",
       "",
-      "  HELP      Show this command list",
-      "  STATUS    Show station equipment status",
-      "  WEATHER   Show current weather observation",
-      "  NODES     Show known weather network nodes",
-      "  RADIO     Check radio interface",
-      "  LOG       Show the last 10 station events",
-      "  CLS       Clear the terminal",
-      "  ABOUT     Show terminal information",
+      "  HELP           Show this command list",
+      "  STATUS         Show station equipment status",
+      "  WEATHER        Show current weather observation",
+      "  NODES          Show known weather network nodes",
+      "  RADIO          Check radio interface",
+      "  LOG            Show the last 10 station events",
+      "  DIR [path]     List files and directories",
+      "  TYPE <file>    Display a text file",
+      "  CLS            Clear the terminal",
+      "  ABOUT          Show terminal information",
+      "",
+      "Examples:",
+      "  DIR",
+      "  DIR NETWORK",
+      "  TYPE README.TXT",
+      "  TYPE SYSTEM\\MAINT.TXT",
       "",
       "Use Up/Down arrows for command history."
     ]);
@@ -355,7 +560,7 @@
       "Local browser simulation. No backend connection.",
       "",
       "Project: Lous12",
-      "Build:   0.1.5",
+      "Build:   0.1.6",
       "License: MIT"
     ]);
   }
@@ -366,21 +571,58 @@
 
     line(`C:\\WS17>${trimmed}`, "bright");
 
-    switch (trimmed.toUpperCase()) {
-      case "HELP": printHelp(); break;
-      case "STATUS": printStatus(); break;
-      case "WEATHER": printWeather(); break;
-      case "NODES": printNodes(); break;
-      case "RADIO": printRadio(); break;
-      case "LOG": printLog(); break;
+    const firstSpace = trimmed.indexOf(" ");
+    const command = (
+      firstSpace === -1 ? trimmed : trimmed.slice(0, firstSpace)
+    ).toUpperCase();
+    const argument = firstSpace === -1 ? "" : trimmed.slice(firstSpace + 1).trim();
+
+    switch (command) {
+      case "HELP":
+        printHelp();
+        break;
+
+      case "STATUS":
+        printStatus();
+        break;
+
+      case "WEATHER":
+        printWeather();
+        break;
+
+      case "NODES":
+        printNodes();
+        break;
+
+      case "RADIO":
+        printRadio();
+        break;
+
+      case "LOG":
+        printLog();
+        break;
+
+      case "DIR":
+        printDirectory(argument);
+        break;
+
+      case "TYPE":
+        printFile(argument);
+        break;
+
       case "CLS":
       case "CLEAR":
         screen.innerHTML = "";
         break;
-      case "ABOUT": printAbout(); break;
+
+      case "ABOUT":
+        printAbout();
+        break;
+
       default:
         line(`Bad command or file name: ${trimmed}`);
         line("Type HELP for available commands.");
+        break;
     }
 
     line("");

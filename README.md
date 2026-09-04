@@ -2,16 +2,35 @@
 
 DOS-style atmospheric browser terminal by **Lous12**.
 
-## 0.1.5
+## 0.1.6
 
-Bugfix release.
+This update adds the first small pseudo-filesystem.
 
-- fixed command input becoming unusable after boot
-- terminal now survives browsers that block `localStorage` for local files
-- input uses the browser's native caret for more reliable typing
-- boot sequence always unlocks the prompt, even if an animation step fails
+### New commands
 
-Commands:
+```text
+DIR [path]
+TYPE <file>
+```
+
+Examples:
+
+```text
+DIR
+DIR SYSTEM
+DIR NETWORK
+DIR LOGS
+
+TYPE README.TXT
+TYPE STATION.TXT
+TYPE SYSTEM\MAINT.TXT
+TYPE NETWORK\NODES.TXT
+TYPE LOGS\EVENTS.LOG
+```
+
+The filesystem is intentionally small. More files, directories and commands will be added gradually as the station lore develops.
+
+### Other commands
 
 ```text
 HELP
