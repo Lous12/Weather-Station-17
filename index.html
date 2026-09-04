@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0b0f10" />
+  <meta name="description" content="Weather Station 17 — an autonomous weather terminal by Lous12." />
+  <title>Weather Station 17</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="noise" aria-hidden="true"></div>
+
+  <main class="terminal">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">AUTOMATED OBSERVATION SYSTEM</p>
+        <h1>WEATHER STATION 17</h1>
+      </div>
+      <div class="station-id">
+        <span>NODE</span>
+        <strong>WS-17</strong>
+      </div>
+    </header>
+
+    <section class="status-line" aria-label="Station time and state">
+      <div>
+        <span class="label">DATE</span>
+        <span id="date">---- -- --</span>
+      </div>
+      <div>
+        <span class="label">LOCAL</span>
+        <span id="clock">--:--:--</span>
+      </div>
+      <div>
+        <span class="label">MODE</span>
+        <span>AUTO</span>
+      </div>
+      <div>
+        <span class="label">PERSONNEL</span>
+        <span class="warn">0</span>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="panel weather-panel">
+        <div class="panel-title">
+          <span>ENVIRONMENT</span>
+          <span id="condition">STABLE</span>
+        </div>
+
+        <div class="metric primary">
+          <span class="metric-label">AIR TEMP</span>
+          <span class="metric-value"><b id="temperature">-27.8</b> °C</span>
+        </div>
+
+        <div class="metric">
+          <span class="metric-label">WIND</span>
+          <span class="metric-value"><b id="wind-dir">NE</b> <b id="wind">11.4</b> m/s</span>
+        </div>
+
+        <div class="metric">
+          <span class="metric-label">PRESSURE</span>
+          <span class="metric-value"><b id="pressure">742</b> mmHg</span>
+        </div>
+
+        <div class="metric">
+          <span class="metric-label">VISIBILITY</span>
+          <span class="metric-value"><b id="visibility">3.2</b> km</span>
+        </div>
+
+        <div class="metric">
+          <span class="metric-label">SNOW DEPTH</span>
+          <span class="metric-value"><b id="snow">64</b> cm</span>
+        </div>
+      </article>
+
+      <article class="panel system-panel">
+        <div class="panel-title">
+          <span>SYSTEM STATUS</span>
+          <span id="uptime">UP 000:00:00</span>
+        </div>
+
+        <div class="system-row">
+          <span>PRIMARY POWER</span>
+          <span class="ok" id="power">ONLINE</span>
+        </div>
+        <div class="system-row">
+          <span>HEATING</span>
+          <span class="ok" id="heating">ONLINE</span>
+        </div>
+        <div class="system-row">
+          <span>RADIO LINK</span>
+          <span class="degraded" id="radio">DEGRADED</span>
+        </div>
+        <div class="system-row">
+          <span>MAIN ANTENNA</span>
+          <span class="ok" id="antenna">ONLINE</span>
+        </div>
+        <div class="system-row">
+          <span>EXT. SENSOR 03</span>
+          <span class="ok" id="sensor">ONLINE</span>
+        </div>
+
+        <div class="service-box">
+          <span class="label">LAST SERVICE</span>
+          <strong id="service-days">287 DAYS AGO</strong>
+          <small>MANUAL MAINTENANCE OVERDUE</small>
+        </div>
+      </article>
+
+      <article class="panel alert-panel" id="alert-panel">
+        <div class="panel-title">
+          <span>ACTIVE NOTICE</span>
+          <span id="alert-level">ADVISORY</span>
+        </div>
+        <p id="alert-text">COLD WEATHER CONDITIONS. AUTOMATED SYSTEMS NOMINAL.</p>
+      </article>
+
+      <article class="panel log-panel">
+        <div class="panel-title">
+          <span>EVENT LOG</span>
+          <button id="clear-log" type="button" title="Clear local log">CLR</button>
+        </div>
+        <div id="log" class="log" aria-live="polite"></div>
+      </article>
+    </section>
+
+    <footer>
+      <span>WS17/AOS • BUILD 0.1.0</span>
+      <span>LOCAL SIMULATION • NO SERVER CONNECTION</span>
+      <span>A PROJECT BY <a href="https://github.com/Lous12" target="_blank" rel="noreferrer">LOUS12</a></span>
+    </footer>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
