@@ -1,20 +1,17 @@
 # Weather Station 17
 
-A small atmospheric web project by Lous12.
+A small atmospheric browser project by Lous12.
 
-The project imitates an automated weather station in an isolated cold region.
-It is intentionally plain and utilitarian: no glass UI, no fake sci-fi dashboard,
-no jumpscares, and no large lore exposition.
+Version 0.1.2 switches the interface to a DOS-inspired text terminal:
+black background, fixed-width layout, plain text tables and minimal color.
 
-The station tells its story through measurements, system status and sparse logs.
+No backend is required. The project can be hosted directly on GitHub Pages.
 
 ## Run
 
 Open `index.html`.
 
 ## GitHub Pages
-
-Upload the repository files, then enable:
 
 Settings → Pages → Deploy from a branch → main → /(root)
 

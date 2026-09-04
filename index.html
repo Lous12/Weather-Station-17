@@ -8,74 +8,75 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main class="screen">
-    <header class="header">
-      <div>
-        <div class="small">AUTOMATED WEATHER OBSERVATION NETWORK</div>
-        <h1>WEATHER STATION 17</h1>
-      </div>
-      <div class="node">WS-17</div>
-    </header>
-
-    <div class="meta">
-      <span><b>DATE</b> <span id="date">----</span></span>
-      <span><b>LOCAL</b> <span id="clock">--:--:--</span></span>
-      <span><b>MODE</b> AUTO</span>
-      <span><b>PERSONNEL</b> 0</span>
+  <main class="dos">
+    <div class="boot">
+      <div>AOS/17 WEATHER TERMINAL  Version 0.1.2</div>
+      <div>Copyright (C) 2026 Lous12</div>
+      <div>Station node: WS-17</div>
+      <div>Personnel detected: 0</div>
     </div>
 
-    <section class="section">
-      <div class="section-title">OBSERVATION</div>
+    <div class="prompt">C:\WS17&gt; status</div>
 
-      <div class="temp-line">
-        <span>AIR TEMPERATURE</span>
-        <strong><span id="temperature">-27.8</span> °C</strong>
+    <section class="box">
+      <div class="box-title">[ WEATHER STATION 17 / AUTOMATED OBSERVATION NETWORK ]</div>
+
+      <div class="meta-line">
+        <span>DATE <b id="date">----</b></span>
+        <span>LOCAL <b id="clock">--:--:--</b></span>
+        <span>MODE <b>AUTO</b></span>
+        <span>PERSONNEL <b>0</b></span>
       </div>
 
-      <div class="rows">
-        <div><span>WIND</span><span><b id="wind-dir">NE</b> <b id="wind">11.4</b> m/s</span></div>
-        <div><span>PRESSURE</span><span><b id="pressure">742</b> mmHg</span></div>
-        <div><span>VISIBILITY</span><span><b id="visibility">3.2</b> km</span></div>
-        <div><span>SNOW DEPTH</span><span><b id="snow">64</b> cm</span></div>
-        <div><span>CONDITION</span><span id="condition">STABLE</span></div>
-      </div>
-    </section>
+      <pre class="separator">-------------------------------------------------------------------------------</pre>
 
-    <section class="section">
-      <div class="section-title">STATION</div>
-      <div class="rows">
-        <div><span>PRIMARY POWER</span><span id="power">ONLINE</span></div>
-        <div><span>HEATING</span><span id="heating">ONLINE</span></div>
-        <div><span>RADIO LINK</span><span id="radio">DEGRADED</span></div>
-        <div><span>MAIN ANTENNA</span><span id="antenna">ONLINE</span></div>
-        <div><span>EXT. SENSOR 03</span><span id="sensor">ONLINE</span></div>
-        <div><span>UPTIME</span><span id="uptime">UP 000:00:00</span></div>
+      <div class="section-label">OBSERVATION</div>
+
+      <div class="data-table">
+        <div><span>AIR TEMPERATURE</span><b><span id="temperature">-27.8</span> °C</b></div>
+        <div><span>WIND</span><b><span id="wind-dir">NE</span> <span id="wind">11.4</span> m/s</b></div>
+        <div><span>PRESSURE</span><b><span id="pressure">742</span> mmHg</b></div>
+        <div><span>VISIBILITY</span><b><span id="visibility">3.2</span> km</b></div>
+        <div><span>SNOW DEPTH</span><b><span id="snow">64</span> cm</b></div>
+        <div><span>CONDITION</span><b id="condition">STABLE</b></div>
+      </div>
+
+      <pre class="separator">-------------------------------------------------------------------------------</pre>
+
+      <div class="section-label">STATION</div>
+
+      <div class="data-table">
+        <div><span>PRIMARY POWER</span><b id="power">ONLINE</b></div>
+        <div><span>HEATING</span><b id="heating">ONLINE</b></div>
+        <div><span>RADIO LINK</span><b id="radio">DEGRADED</b></div>
+        <div><span>MAIN ANTENNA</span><b id="antenna">ONLINE</b></div>
+        <div><span>EXT. SENSOR 03</span><b id="sensor">ONLINE</b></div>
+        <div><span>UPTIME</span><b id="uptime">UP 000:00:00</b></div>
       </div>
 
       <div class="maintenance">
         LAST SERVICE: <b id="service-days">287 DAYS AGO</b><br>
-        <span>MANUAL MAINTENANCE OVERDUE</span>
+        MANUAL MAINTENANCE OVERDUE
       </div>
-    </section>
 
-    <section class="section notice">
-      <div class="section-title">NOTICE</div>
-      <div id="alert-level">ADVISORY</div>
-      <p id="alert-text">COLD WEATHER CONDITIONS. AUTOMATED SYSTEMS NOMINAL.</p>
-    </section>
+      <pre class="separator">-------------------------------------------------------------------------------</pre>
 
-    <section class="section log-section">
-      <div class="section-title log-head">
+      <div class="section-label">NOTICE</div>
+      <div class="notice-line"><b id="alert-level">ADVISORY</b> : <span id="alert-text">COLD WEATHER CONDITIONS. AUTOMATED SYSTEMS NOMINAL.</span></div>
+
+      <pre class="separator">-------------------------------------------------------------------------------</pre>
+
+      <div class="log-head">
         <span>EVENT LOG</span>
-        <button id="clear-log" type="button">CLEAR</button>
+        <button id="clear-log" type="button">[CLEAR]</button>
       </div>
       <div id="log" class="log"></div>
     </section>
 
+    <div class="prompt bottom-prompt">C:\WS17&gt;<span class="cursor">█</span></div>
+
     <footer>
-      <span>WS17 / AOS / 0.1.1</span>
-      <span>LOCAL SIMULATION</span>
-      <span>LOUS12</span>
+      WS17/AOS • LOCAL SIMULATION • LOUS12
     </footer>
   </main>
 
